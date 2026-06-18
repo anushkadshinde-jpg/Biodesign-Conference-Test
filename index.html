@@ -440,9 +440,9 @@ function renderTrailToCanvas() {
   for (let i = 0; i < skeletonPixels.length; i++) {
     const p = skeletonPixels[i];
     const pi = (p.x + p.y * width) * 4;
-    pixels[pi]     = TRAIL_R * 0.2;
-    pixels[pi + 1] = TRAIL_G * 0.2;
-    pixels[pi + 2] = TRAIL_B * 0.2;
+    pixels[pi]     = TRAIL_R * 0.8;
+    pixels[pi + 1] = TRAIL_G * 0.8;
+    pixels[pi + 2] = TRAIL_B * 0.8;
     pixels[pi + 3] = 255; 
   }
 
