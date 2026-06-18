@@ -236,7 +236,6 @@ bindSlider("saSlider",    "saVal",     x => sensorAngle     = x * Math.PI / 180,
 bindSlider("raSlider",    "raVal",     x => rotationAngle   = x * Math.PI / 180, "°");
 
 // ── Image upload ──────────────────────────────────────────────────────────────
-// ── Image upload ──────────────────────────────────────────────────────────────
 const dropZone    = document.getElementById("drop-zone");
 const fileInput   = document.getElementById("file-input");
 const previewWrap = document.getElementById("img-preview-wrap");
@@ -244,7 +243,7 @@ const previewImg  = document.getElementById("img-preview");
 const imgClear    = document.getElementById("img-clear");
 const imgStatus   = document.getElementById("img-status");
 
-// 1. Prevent default browser behaviors for ALL drag events
+// Prevent default browser behaviors for ALL drag events
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
   dropZone.addEventListener(eventName, e => {
     e.preventDefault();
@@ -252,24 +251,21 @@ const imgStatus   = document.getElementById("img-status");
   });
 });
 
-// 2. Handle visual hover states
 dropZone.addEventListener("click", () => fileInput.click());
 dropZone.addEventListener("dragover", () => dropZone.classList.add("drag-over"));
 dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
 
-// 3. Bulletproof Drop Handler
+// Bulletproof Drop Handler
 dropZone.addEventListener("drop", e => {
   dropZone.classList.remove("drag-over");
   
   let f = null;
-  // Modern browsers: Try items interface first
   if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
     const item = e.dataTransfer.items;
     if (item.kind === 'file') {
       f = item.getAsFile();
     }
   } 
-  // Fallback: Try files interface
   else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
     f = e.dataTransfer.files;
   }
@@ -281,7 +277,6 @@ dropZone.addEventListener("drop", e => {
   }
 });
 
-// 4. Click-to-browse Handler
 fileInput.addEventListener("change", e => { 
   if (e.target.files && e.target.files.length > 0) {
     handleFile(e.target.files); 
@@ -299,7 +294,6 @@ imgClear.addEventListener("click", e => {
 });
 
 function handleFile(file) {
-  // Debugging log: open your browser console to see what is actually passing through
   console.log("File received:", file ? file.name : "null", "Type:", file ? file.type : "null");
 
   if (!file) return;
@@ -323,31 +317,6 @@ function handleFile(file) {
     img.onload = () => {
       uploadedImage = img;
       setStatus(`${img.naturalWidth}×${img.naturalHeight}px — ready`);
-      // Auto-switch to image tab
-      seedMode = "image";
-      document.querySelectorAll(".tab-btn").forEach(b =>
-        b.classList.toggle("active", b.dataset.tab === "image-tab"));
-      document.querySelectorAll(".tab-pane").forEach(p =>
-        p.classList.toggle("active", p.id === "image-tab"));
-      if (typeof spawnAgents === "function") spawnAgents();
-    };
-    img.onerror = () => setStatus("Could not decode — try another file.", true);
-    img.src = evt.target.result;
-  };
-  reader.onerror = () => setStatus("File read error.", true);
-  reader.readAsDataURL(file);
-}
-
-  const reader = new FileReader();
-  reader.onload = evt => {
-    previewImg.src = evt.target.result;
-    previewWrap.style.display = "block";
-
-    const img = new Image();
-    img.onload = () => {
-      uploadedImage = img;
-      setStatus(`${img.naturalWidth}×${img.naturalHeight}px — ready`);
-      // Auto-switch to image tab
       seedMode = "image";
       document.querySelectorAll(".tab-btn").forEach(b =>
         b.classList.toggle("active", b.dataset.tab === "image-tab"));
@@ -371,12 +340,7 @@ function setStatus(msg, err = false) {
 function setup() {
   createCanvas(windowWidth, windowHeight);
   pixelDensity(1);
-
-  // FIX: trailMap uses a plain 2D array, NOT a p5.Graphics with its own alpha.
-  // We manage the pheromone field manually as a Float32 array for R/G/B channels,
-  // then draw it to the main canvas each frame. This avoids ALL blending/alpha bugs.
   initTrailBuffer();
-
   letterBuf = createGraphics(width, height);
   spawnAgents();
 }
@@ -395,7 +359,6 @@ function depositTrail(x, y) {
   const xi = Math.floor(x), yi = Math.floor(y);
   if (xi < 0 || xi >= width || yi < 0 || yi >= height) return;
   const idx = xi + yi * width;
-  // Deposit full-strength colour into float buffer (no alpha ambiguity)
   trailR[idx] = Math.min(255, trailR[idx] + TRAIL_R);
   trailG[idx] = Math.min(255, trailG[idx] + TRAIL_G);
   trailB[idx] = Math.min(255, trailB[idx] + TRAIL_B);
@@ -404,11 +367,10 @@ function depositTrail(x, y) {
 function senseTrail(sx, sy) {
   const xi = Math.floor(sx), yi = Math.floor(sy);
   if (xi < 0 || xi >= width || yi < 0 || yi >= height) return 0;
-  return trailR[xi + yi * width]; // sense on R channel (strongest signal)
+  return trailR[xi + yi * width]; 
 }
 
 function updateTrailBuffer() {
-  // 3×3 box blur + exponential decay applied to the float buffers
   const w = width, h = height;
   const newR = new Float32Array(w * h);
   const newG = new Float32Array(w * h);
@@ -434,7 +396,6 @@ function updateTrailBuffer() {
 }
 
 function renderTrailToCanvas() {
-  // Write float trail buffers directly into p5 pixel array
   loadPixels();
   const n = width * height;
   for (let i = 0; i < n; i++) {
@@ -442,17 +403,17 @@ function renderTrailToCanvas() {
     pixels[pi]     = trailR[i];
     pixels[pi + 1] = trailG[i];
     pixels[pi + 2] = trailB[i];
-    pixels[pi + 3] = 204; // REDUCED OPACITY: 204 is 80% of 255 (a 20% reduction)
+    pixels[pi + 3] = 204; // REDUCED OPACITY
   }
 
-  // Draw the skeleton pixels purely visually on top of the decaying trail array
+  // Draw the static skeleton pixels purely visually on top
   for (let i = 0; i < skeletonPixels.length; i++) {
     const p = skeletonPixels[i];
     const pi = (p.x + p.y * width) * 4;
     pixels[pi]     = TRAIL_R;
     pixels[pi + 1] = TRAIL_G;
     pixels[pi + 2] = TRAIL_B;
-    pixels[pi + 3] = 255; // Ensure the skeleton stays at 100% full opacity
+    pixels[pi + 3] = 255; 
   }
 
   updatePixels();
@@ -460,13 +421,9 @@ function renderTrailToCanvas() {
 
 // ── Draw loop ─────────────────────────────────────────────────────────────────
 function draw() {
-  // 1. Agents sense and move
   for (const a of allAgents) a.update();
-  // 2. Agents deposit into float trail buffer
   for (const a of allAgents) depositTrail(a.pos.x, a.pos.y);
-  // 3. Diffuse + decay float trail buffer
   updateTrailBuffer();
-  // 4. Blit trail buffer to screen pixels
   renderTrailToCanvas();
 }
 
@@ -480,8 +437,8 @@ function windowResized() {
 // ── Spawn ─────────────────────────────────────────────────────────────────────
 function spawnAgents() {
   allAgents = [];
-  skeletonPixels = []; // Clear out skeleton mapping on respawn
-  initTrailBuffer(); // clear trail on respawn
+  skeletonPixels = []; 
+  initTrailBuffer(); 
 
   if (seedMode === "image") spawnFromImage();
   else                      spawnFromText();
@@ -494,7 +451,7 @@ function spawnFromText() {
   const FONT_SIZE = 120;
 
   letterBuf.clear();
-  letterBuf.background(0, 0);           // fully transparent background
+  letterBuf.background(0, 0);           
   letterBuf.textAlign(CENTER, CENTER);
   letterBuf.textFont("monospace");
   letterBuf.textSize(FONT_SIZE);
@@ -503,12 +460,8 @@ function spawnFromText() {
   letterBuf.text(textSeed, letterBuf.width / 2, letterBuf.height / 2);
   letterBuf.loadPixels();
 
-  // FIX: measure text width using letterBuf (which has the font set),
-  // not the main canvas which has no font set.
-  // We scan the full buffer but limit to a sensible bounding box.
   const W = letterBuf.width, H = letterBuf.height;
 
-  // Scan entire buffer (text is centred, so a ±200px margin is fine)
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
   const halfW = Math.min(cx, Math.floor(textSeed.length * FONT_SIZE * 0.65));
   const halfH = Math.floor(FONT_SIZE * 0.7);
@@ -518,8 +471,7 @@ function spawnFromText() {
   for (let py = y0; py < y1; py++) {
     for (let px = x0; px < x1; px++) {
       const idx = 4 * (px + py * W);
-      if (letterBuf.pixels[idx + 3] < 128) continue; // transparent — skip
-      // Check if any neighbour is transparent (= edge pixel)
+      if (letterBuf.pixels[idx + 3] < 128) continue; 
       let isEdge = false;
       outer: for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
@@ -529,7 +481,7 @@ function spawnFromText() {
           }
         }
       }
-      if (isEdge) skeletonPixels.push({ x: px, y: py }); // Save to global skeleton array
+      if (isEdge) skeletonPixels.push({ x: px, y: py }); 
     }
   }
 
@@ -551,7 +503,6 @@ function spawnFromImage() {
   const ctx = offC.getContext("2d");
   ctx.clearRect(0, 0, width, height);
 
-  // Scale to fit, centred
   const scale = Math.min(width * 0.85 / uploadedImage.naturalWidth,
                          height * 0.85 / uploadedImage.naturalHeight);
   const dw = uploadedImage.naturalWidth * scale;
@@ -575,50 +526,11 @@ function spawnFromImage() {
           if (!dx && !dy) continue;
           if (!isInside(4*((px+dx)+(py+dy)*width))) { edge=true; break outer; }
         }
-        if (edge) skeletonPixels.push({x:px, y:py}); // Save to global skeleton array
+        if (edge) skeletonPixels.push({x:px, y:py}); 
       }
     }
   } else {
     for (let py = 0; py < height; py++)
       for (let px = 0; px < width; px++)
-        if (isInside(4*(px+py*width))) skeletonPixels.push({x:px, y:py}); // Save to global skeleton array
+        if (isInside(4*(px+py*width))) skeletonPixels.push({x:px, y:py}); 
   }
-
-  if (!skeletonPixels.length) { setStatus("No pixels found — try a clearer image.", true); return; }
-
-  const total = Math.min(skeletonPixels.length, AGENTS_PER_LETTER * 6);
-  for (let i = 0; i < total; i++) {
-    const bp = skeletonPixels[Math.floor(Math.random() * skeletonPixels.length)];
-    allAgents.push(new Agent(bp.x + random(-1,1), bp.y + random(-1,1), random(TWO_PI)));
-  }
-  setStatus(`${allAgents.length.toLocaleString()} agents spawned`);
-}
-
-// ── Agent ─────────────────────────────────────────────────────────────────────
-class Agent {
-  constructor(x, y, angle) {
-    this.pos   = createVector(x, y);
-    this.angle = angle;
-  }
-  update() {
-    const sL = this._sense(this.angle - sensorAngle);
-    const sC = this._sense(this.angle);
-    const sR = this._sense(this.angle + sensorAngle);
-
-    if      (sL > sC && sL > sR) this.angle -= rotationAngle;
-    else if (sR > sC && sR > sL) this.angle += rotationAngle;
-    else                         this.angle += random(-0.1, 0.1);
-
-    this.pos.x = (this.pos.x + cos(this.angle) * stepSize + width)  % width;
-    this.pos.y = (this.pos.y + sin(this.angle) * stepSize + height) % height;
-  }
-  _sense(angle) {
-    return senseTrail(
-      this.pos.x + Math.cos(angle) * SENSOR_DIST,
-      this.pos.y + Math.sin(angle) * SENSOR_DIST
-    );
-  }
-}
-</script>
-</body>
-</html>
