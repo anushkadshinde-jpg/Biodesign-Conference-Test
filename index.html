@@ -236,6 +236,7 @@ bindSlider("saSlider",    "saVal",     x => sensorAngle     = x * Math.PI / 180,
 bindSlider("raSlider",    "raVal",     x => rotationAngle   = x * Math.PI / 180, "°");
 
 // ── Image upload ──────────────────────────────────────────────────────────────
+// ── Image upload ──────────────────────────────────────────────────────────────
 const dropZone    = document.getElementById("drop-zone");
 const fileInput   = document.getElementById("file-input");
 const previewWrap = document.getElementById("img-preview-wrap");
@@ -243,18 +244,50 @@ const previewImg  = document.getElementById("img-preview");
 const imgClear    = document.getElementById("img-clear");
 const imgStatus   = document.getElementById("img-status");
 
-dropZone.addEventListener("click",      () => fileInput.click());
-dropZone.addEventListener("dragover",  e  => { e.preventDefault(); dropZone.classList.add("drag-over"); });
-dropZone.addEventListener("dragleave", ()  => dropZone.classList.remove("drag-over"));
-dropZone.addEventListener("drop", e => {
-  e.preventDefault(); dropZone.classList.remove("drag-over");
-  const f = e.dataTransfer.files; if (f) handleFile(f); 
-});
-fileInput.addEventListener("change", e => { 
-  const f = e.target.files; if (f) handleFile(f); 
+// 1. Prevent default browser behaviors for ALL drag events
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  dropZone.addEventListener(eventName, e => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
 });
 
-fileInput.addEventListener("change", e => { const f = e.target.files; if (f) handleFile(f); });
+// 2. Handle visual hover states
+dropZone.addEventListener("click", () => fileInput.click());
+dropZone.addEventListener("dragover", () => dropZone.classList.add("drag-over"));
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+
+// 3. Bulletproof Drop Handler
+dropZone.addEventListener("drop", e => {
+  dropZone.classList.remove("drag-over");
+  
+  let f = null;
+  // Modern browsers: Try items interface first
+  if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+    const item = e.dataTransfer.items;
+    if (item.kind === 'file') {
+      f = item.getAsFile();
+    }
+  } 
+  // Fallback: Try files interface
+  else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    f = e.dataTransfer.files;
+  }
+
+  if (f) {
+    handleFile(f);
+  } else {
+    setStatus("Could not read dropped file.", true);
+  }
+});
+
+// 4. Click-to-browse Handler
+fileInput.addEventListener("change", e => { 
+  if (e.target.files && e.target.files.length > 0) {
+    handleFile(e.target.files); 
+  }
+});
+
 imgClear.addEventListener("click", e => {
   e.stopPropagation();
   uploadedImage = null;
@@ -266,10 +299,44 @@ imgClear.addEventListener("click", e => {
 });
 
 function handleFile(file) {
+  // Debugging log: open your browser console to see what is actually passing through
+  console.log("File received:", file ? file.name : "null", "Type:", file ? file.type : "null");
+
+  if (!file) return;
+
   const ok = /\.(png|svg)$/i.test(file.name) ||
              ["image/png","image/svg+xml"].includes(file.type);
-  if (!ok) { setStatus("Only PNG or SVG files are supported.", true); return; }
+             
+  if (!ok) { 
+    setStatus("Only PNG or SVG files are supported.", true); 
+    return; 
+  }
+  
   setStatus("Loading…");
+
+  const reader = new FileReader();
+  reader.onload = evt => {
+    previewImg.src = evt.target.result;
+    previewWrap.style.display = "block";
+
+    const img = new Image();
+    img.onload = () => {
+      uploadedImage = img;
+      setStatus(`${img.naturalWidth}×${img.naturalHeight}px — ready`);
+      // Auto-switch to image tab
+      seedMode = "image";
+      document.querySelectorAll(".tab-btn").forEach(b =>
+        b.classList.toggle("active", b.dataset.tab === "image-tab"));
+      document.querySelectorAll(".tab-pane").forEach(p =>
+        p.classList.toggle("active", p.id === "image-tab"));
+      if (typeof spawnAgents === "function") spawnAgents();
+    };
+    img.onerror = () => setStatus("Could not decode — try another file.", true);
+    img.src = evt.target.result;
+  };
+  reader.onerror = () => setStatus("File read error.", true);
+  reader.readAsDataURL(file);
+}
 
   const reader = new FileReader();
   reader.onload = evt => {
