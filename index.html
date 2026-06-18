@@ -199,7 +199,7 @@ let edgeMode      = "edge";   // "edge" | "fill"
 let trailMap;       // p5.Graphics — holds the pheromone field
 let letterBuf;      // p5.Graphics — used only to rasterise text
 let allAgents = [];
-let skeletonPixels = []; // ADDED: Global to retain the initial skeleton structure
+let skeletonPixels = []; // Global to retain the initial skeleton structure
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
 document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -371,16 +371,17 @@ function renderTrailToCanvas() {
     pixels[pi]     = trailR[i];
     pixels[pi + 1] = trailG[i];
     pixels[pi + 2] = trailB[i];
-    pixels[pi + 3] = 255;
+    pixels[pi + 3] = 204; // REDUCED OPACITY: 204 is 80% of 255 (a 20% reduction)
   }
 
-  // ADDED: Draw the skeleton pixels purely visually on top of the decaying trail array
+  // Draw the skeleton pixels purely visually on top of the decaying trail array
   for (let i = 0; i < skeletonPixels.length; i++) {
     const p = skeletonPixels[i];
     const pi = (p.x + p.y * width) * 4;
     pixels[pi]     = TRAIL_R;
     pixels[pi + 1] = TRAIL_G;
     pixels[pi + 2] = TRAIL_B;
+    pixels[pi + 3] = 255; // Ensure the skeleton stays at 100% full opacity
   }
 
   updatePixels();
@@ -408,7 +409,7 @@ function windowResized() {
 // ── Spawn ─────────────────────────────────────────────────────────────────────
 function spawnAgents() {
   allAgents = [];
-  skeletonPixels = []; // ADDED: Clear out skeleton mapping on respawn
+  skeletonPixels = []; // Clear out skeleton mapping on respawn
   initTrailBuffer(); // clear trail on respawn
 
   if (seedMode === "image") spawnFromImage();
@@ -457,7 +458,7 @@ function spawnFromText() {
           }
         }
       }
-      if (isEdge) skeletonPixels.push({ x: px, y: py }); // ADDED: Save to global skeleton array
+      if (isEdge) skeletonPixels.push({ x: px, y: py }); // Save to global skeleton array
     }
   }
 
@@ -503,13 +504,13 @@ function spawnFromImage() {
           if (!dx && !dy) continue;
           if (!isInside(4*((px+dx)+(py+dy)*width))) { edge=true; break outer; }
         }
-        if (edge) skeletonPixels.push({x:px, y:py}); // ADDED: Save to global skeleton array
+        if (edge) skeletonPixels.push({x:px, y:py}); // Save to global skeleton array
       }
     }
   } else {
     for (let py = 0; py < height; py++)
       for (let px = 0; px < width; px++)
-        if (isInside(4*(px+py*width))) skeletonPixels.push({x:px, y:py}); // ADDED: Save to global skeleton array
+        if (isInside(4*(px+py*width))) skeletonPixels.push({x:px, y:py}); // Save to global skeleton array
   }
 
   if (!skeletonPixels.length) { setStatus("No pixels found — try a clearer image.", true); return; }
