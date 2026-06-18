@@ -440,21 +440,22 @@ function renderTrailToCanvas() {
   for (let i = 0; i < skeletonPixels.length; i++) {
     const p = skeletonPixels[i];
     const pi = (p.x + p.y * width) * 4;
-    pixels[pi]     = TRAIL_R * 0.4;
-    pixels[pi + 1] = TRAIL_G * 0.4;
-    pixels[pi + 2] = TRAIL_B * 0.4;
+    pixels[pi]     = TRAIL_R * 0.2;
+    pixels[pi + 1] = TRAIL_G * 0.2;
+    pixels[pi + 2] = TRAIL_B * 0.2;
     pixels[pi + 3] = 255; 
   }
 
-  // Render the glowing trails ON TOP of the skeleton
-  for (let i = 0; i < n; i++) {
-    const pi = i * 4;
-    if (trailR[i] > 5 || trailG[i] > 5 || trailB[i] > 5) {
-      pixels[pi]     = Math.max(pixels[pi], trailR[i]);
-      pixels[pi + 1] = Math.max(pixels[pi + 1], trailG[i]);
-      pixels[pi + 2] = Math.max(pixels[pi + 2], trailB[i]);
-    }
+// Render the glowing trails ON TOP of the skeleton
+const intensity = 0.6;
+for (let i = 0; i < n; i++) {
+  const pi = i * 4;
+  if (trailR[i] > 30 || trailG[i] > 30 || trailB[i] > 30) {
+    pixels[pi]     = Math.max(pixels[pi], trailR[i] * intensity);
+    pixels[pi + 1] = Math.max(pixels[pi + 1], trailG[i] * intensity);
+    pixels[pi + 2] = Math.max(pixels[pi + 2], trailB[i] * intensity);
   }
+}
 
   updatePixels();
 }
