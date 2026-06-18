@@ -4,19 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Physarum Decay Machine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #000000;
       --panel-bg: rgba(15, 15, 15, 0.88);
       --text: #ffffff;
-      --accent: #E6E800;
+      --accent: #48b493;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       overflow: hidden;
       background: var(--bg);
-      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-family: 'Bai Jamjuree', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       color: var(--text);
+    }
+    /* Hidden element to force the browser to download the font immediately */
+    #font-preload {
+      position: absolute;
+      opacity: 0;
+      font-family: 'Bai Jamjuree';
+      font-weight: 700;
     }
     canvas { display: block; }
 
@@ -47,7 +57,7 @@
       cursor: pointer; letter-spacing: 0.5px;
       transition: all 0.15s;
     }
-    .tab-btn.active { background: rgba(230,232,0,0.12); border-color: var(--accent); color: var(--accent); }
+    .tab-btn.active { background: rgba(72, 180, 147, 0.12); border-color: var(--accent); color: var(--accent); }
     .tab-pane { display: none; }
     .tab-pane.active { display: block; }
 
@@ -56,7 +66,7 @@
       display: flex; justify-content: space-between;
       font-size: 0.82rem; margin-bottom: 4px; color: #ccc;
     }
-    label.block-label { display: block; }
+    label.block-label { display: block; margin-bottom: 6px; }
     input[type="text"] {
       width: 100%;
       background: rgba(255,255,255,0.05);
@@ -81,14 +91,14 @@
       transition: border-color 0.2s, background 0.2s;
       background: rgba(255,255,255,0.02); text-align: center;
     }
-    #drop-zone:hover, #drop-zone.drag-over { border-color: var(--accent); background: rgba(230,232,0,0.04); }
+    #drop-zone:hover, #drop-zone.drag-over { border-color: var(--accent); background: rgba(72, 180, 147, 0.04); }
     #drop-zone svg { opacity: 0.45; }
     #drop-zone p { font-size: 0.75rem; color: #777; line-height: 1.45; }
     #drop-zone strong { color: #aaa; font-weight: 500; }
     #file-input { display: none; }
 
-    #img-preview-wrap { display: none; position: relative; margin-top: 8px; }
-    #img-preview { width: 100%; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); display: block; }
+    #img-preview-wrap { display: none; position: relative; margin-top: 12px; }
+    #img-preview { width: 100%; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); display: block; background: #fff;}
     #img-clear {
       position: absolute; top: 5px; right: 5px;
       width: 20px; height: 20px; border-radius: 50%;
@@ -99,7 +109,7 @@
     #img-clear:hover { background: #c00; }
     #img-status { font-size: 0.72rem; margin-top: 5px; color: var(--accent); min-height: 14px; }
 
-    .radio-group { display: flex; gap: 10px; flex-wrap: wrap; }
+    .radio-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;}
     .radio-group label {
       display: flex; align-items: center; gap: 4px;
       font-size: 0.76rem; color: #bbb; cursor: pointer; margin-bottom: 0;
@@ -108,6 +118,8 @@
   </style>
 </head>
 <body>
+
+<div id="font-preload">Load</div>
 
 <div id="ui-panel">
   <h1>Physarum Model</h1>
@@ -121,13 +133,13 @@
   <div class="tab-pane active" id="text-tab">
     <div class="control-group">
       <label class="block-label" for="textInput">Seed Text</label>
-      <input type="text" id="textInput" value="SLIME">
+      <input type="text" id="textInput" value="BIODESIGN">
     </div>
   </div>
 
   <div class="tab-pane" id="image-tab">
     <div class="control-group">
-      <label class="block-label">Upload PNG or SVG</label>
+      <label class="block-label">Upload Image</label>
       <div id="drop-zone">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -135,8 +147,8 @@
           <polyline points="17 8 12 3 7 8"/>
           <line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
-        <p><strong>Click to browse</strong> or drag &amp; drop<br>PNG or SVG</p>
-        <input type="file" id="file-input" accept=".png,.svg,image/png,image/svg+xml">
+        <p><strong>Click to browse</strong> or drag &amp; drop<br>Image File</p>
+        <input type="file" id="file-input" accept="image/*">
       </div>
       <div id="img-preview-wrap">
         <img id="img-preview" alt="preview">
@@ -144,12 +156,13 @@
       </div>
       <div id="img-status"></div>
     </div>
-    <div class="control-group">
-      <label class="block-label">Spawn agents on</label>
-      <div class="radio-group">
-        <label><input type="radio" name="edge-mode" value="edge" checked> Edges only</label>
-        <label><input type="radio" name="edge-mode" value="fill"> Filled</label>
-      </div>
+  </div>
+
+  <div class="control-group">
+    <label class="block-label">Spawn agents on</label>
+    <div class="radio-group">
+      <label><input type="radio" name="edge-mode" value="edge"> Edges only</label>
+      <label><input type="radio" name="edge-mode" value="fill" checked> Filled</label>
     </div>
   </div>
 
@@ -179,174 +192,188 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
 <script>
-// ── Params ────────────────────────────────────────────────────────────────────
+// ── Params & Globals ──────────────────────────────────────────────────────────
 const AGENTS_PER_LETTER = 2000;
 const SENSOR_DIST       = 10;
 const TRAIL_R = 72, TRAIL_G = 180, TRAIL_B = 147;  // #48b493 decomposed
 
-let textSeed        = "SLIME";
+let textSeed        = "BIODESIGN";
 let decayFactor     = 0.96;
 let diffusionFactor = 0.25;
 let sensorAngle     = Math.PI / 4;
 let rotationAngle   = Math.PI / 6;
 let stepSize        = 1.5;
 
-let seedMode      = "text";   // "text" | "image"
-let uploadedImage = null;     // HTMLImageElement
-let edgeMode      = "edge";   // "edge" | "fill"
+let seedMode      = "text";   
+let uploadedImage = null;     
+let edgeMode      = "fill";   
 
-// p5 globals
-let trailMap;       // p5.Graphics — holds the pheromone field
-let letterBuf;      // p5.Graphics — used only to rasterise text
+let trailMap;       
+let letterBuf;      
 let allAgents = [];
-let skeletonPixels = []; // Global to retain the initial skeleton structure
+let skeletonPixels = []; 
+let trailR, trailG, trailB; 
 
-// ── Tab switching ─────────────────────────────────────────────────────────────
-document.querySelectorAll(".tab-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById(btn.dataset.tab).classList.add("active");
-    seedMode = btn.dataset.tab === "image-tab" ? "image" : "text";
-    if (typeof spawnAgents === "function") spawnAgents();
+// ── UI Setup & Event Listeners ────────────────────────────────────────────────
+window.addEventListener("DOMContentLoaded", () => {
+  // Tab switching
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+      btn.classList.add("active");
+      
+      const tabPane = document.getElementById(btn.dataset.tab);
+      if (tabPane) tabPane.classList.add("active");
+      
+      seedMode = btn.dataset.tab === "image-tab" ? "image" : "text";
+      if (typeof spawnAgents === "function") spawnAgents();
+    });
   });
-});
 
-document.querySelectorAll('input[name="edge-mode"]').forEach(r => {
-  r.addEventListener("change", e => {
-    edgeMode = e.target.value;
-    if (seedMode === "image" && typeof spawnAgents === "function") spawnAgents();
+  document.querySelectorAll('input[name="edge-mode"]').forEach(r => {
+    r.addEventListener("change", e => {
+      edgeMode = e.target.value;
+      if (typeof spawnAgents === "function") spawnAgents();
+    });
   });
-});
 
-document.getElementById("textInput").addEventListener("input", e => {
-  textSeed = e.target.value;
-  if (seedMode === "text" && typeof spawnAgents === "function") spawnAgents();
-});
+  const textInput = document.getElementById("textInput");
+  if (textInput) {
+    textInput.addEventListener("input", e => {
+      textSeed = e.target.value;
+      if (seedMode === "text" && typeof spawnAgents === "function") spawnAgents();
+    });
+  }
 
-function bindSlider(id, valId, setter, suffix = "") {
-  const s = document.getElementById(id), v = document.getElementById(valId);
-  s.addEventListener("input", e => { v.innerText = e.target.value + suffix; setter(+e.target.value); });
-}
-bindSlider("decaySlider", "decayVal",  x => decayFactor      = x);
-bindSlider("diffSlider",  "diffVal",   x => diffusionFactor = x);
-bindSlider("stepSlider",  "stepVal",   x => stepSize        = x);
-bindSlider("saSlider",    "saVal",     x => sensorAngle     = x * Math.PI / 180, "°");
-bindSlider("raSlider",    "raVal",     x => rotationAngle   = x * Math.PI / 180, "°");
+  function bindSlider(id, valId, setter, suffix = "") {
+    const s = document.getElementById(id), v = document.getElementById(valId);
+    if (s && v) {
+      s.addEventListener("input", e => { v.innerText = e.target.value + suffix; setter(+e.target.value); });
+    }
+  }
+  bindSlider("decaySlider", "decayVal",  x => decayFactor      = x);
+  bindSlider("diffSlider",  "diffVal",   x => diffusionFactor = x);
+  bindSlider("stepSlider",  "stepVal",   x => stepSize        = x);
+  bindSlider("saSlider",    "saVal",     x => sensorAngle     = x * Math.PI / 180, "°");
+  bindSlider("raSlider",    "raVal",     x => rotationAngle   = x * Math.PI / 180, "°");
 
-// ── Image upload ──────────────────────────────────────────────────────────────
-const dropZone    = document.getElementById("drop-zone");
-const fileInput   = document.getElementById("file-input");
-const previewWrap = document.getElementById("img-preview-wrap");
-const previewImg  = document.getElementById("img-preview");
-const imgClear    = document.getElementById("img-clear");
-const imgStatus   = document.getElementById("img-status");
+  // Image Upload Logic (Drag-and-Drop / Click-to-browse)
+  const imgClear    = document.getElementById("img-clear");
+  const dropZone    = document.getElementById("drop-zone");
+  const fileInput   = document.getElementById("file-input");
 
-// Prevent defaults to stop browser from opening the image in a new tab
-['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-  dropZone.addEventListener(eventName, e => {
-    e.preventDefault();
-    e.stopPropagation();
-  });
-});
+  if (imgClear) {
+    imgClear.addEventListener("click", e => {
+      e.stopPropagation();
+      uploadedImage = null;
+      
+      const previewWrap = document.getElementById("img-preview-wrap");
+      const previewImg  = document.getElementById("img-preview");
+      if (previewWrap) previewWrap.style.display = "none";
+      if (previewImg) previewImg.src = "";
+      
+      setStatus("");
+      if (fileInput) fileInput.value = "";
+      if (seedMode === "image" && typeof spawnAgents === "function") spawnAgents();
+    });
+  }
 
-dropZone.addEventListener("click", () => fileInput.click());
-dropZone.addEventListener("dragover", () => dropZone.classList.add("drag-over"));
-dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
-
-dropZone.addEventListener("drop", e => {
-  dropZone.classList.remove("drag-over");
-  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-    handleFile(e.dataTransfer.files);
+  if (dropZone && fileInput) {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, e => {
+        e.preventDefault(); e.stopPropagation();
+      });
+    });
+    
+    dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("dragover", () => dropZone.classList.add("drag-over"));
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+    
+    dropZone.addEventListener("drop", e => {
+      dropZone.classList.remove("drag-over");
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFile(e.dataTransfer.files); 
+      }
+    });
+    
+    fileInput.addEventListener("change", e => { 
+      if (e.target.files && e.target.files.length > 0) {
+        handleFile(e.target.files); 
+      }
+    });
   }
 });
 
-fileInput.addEventListener("change", e => { 
-  if (e.target.files && e.target.files.length > 0) {
-    handleFile(e.target.files); 
-  }
-});
-
-imgClear.addEventListener("click", e => {
-  e.stopPropagation();
-  uploadedImage = null;
-  previewWrap.style.display = "none";
-  previewImg.src = "";
-  imgStatus.textContent = "";
-  fileInput.value = "";
-  if (seedMode === "image" && typeof spawnAgents === "function") spawnAgents();
-});
-
-// BULLETPROOF HANDLE FILE FUNCTION (Object URL bypasses FileReader limits)
+// ── Global Helper Functions ───────────────────────────────────────────────────
 function handleFile(file) {
   if (!file) return;
-
-  setStatus("Loading…");
-  console.log("File received:", file.name, file.type, file.size);
-
-  try {
-    // Create a temporary, highly secure internal URL directly to the file data
-    const objectUrl = URL.createObjectURL(file);
-
-    // Show the preview immediately
-    previewImg.src = objectUrl;
-    previewWrap.style.display = "block";
-
-    const img = new Image();
-    img.onload = function() {
-      uploadedImage = img;
-      setStatus(`${img.naturalWidth}×${img.naturalHeight}px — ready`);
-      
-      // Auto-switch to image tab
-      seedMode = "image";
-      document.querySelectorAll(".tab-btn").forEach(b =>
-        b.classList.toggle("active", b.dataset.tab === "image-tab"));
-      document.querySelectorAll(".tab-pane").forEach(p =>
-        p.classList.toggle("active", p.id === "image-tab"));
-        
-      // Add a tiny delay before heavy math so the browser processes the visual update
-      setTimeout(() => {
-        try {
-          if (typeof spawnAgents === "function") spawnAgents();
-        } catch (err) {
-          console.error(err);
-          setStatus("Simulation failed to start.", true);
-        }
-      }, 50); 
-    };
-    
-    img.onerror = function() {
-      setStatus("Could not decode image data. Is it a valid image?", true);
-    };
-
-    // Trigger the image load process
-    img.src = objectUrl;
-    
-  } catch (err) {
-    console.error(err);
-    setStatus("Browser prevented file access. Try a different file.", true);
+  // Guard clause just in case a FileList sneaks through
+  if (file instanceof FileList || (file.length !== undefined && !file.type)) {
+    file = file;
   }
+  if (!file || !(file instanceof Blob)) return;
+
+  setStatus("Loading image...");
+  
+  const img = new Image();
+  // Safe internal URL mapping to bypass local file blockers
+  img.src = URL.createObjectURL(file);
+  
+  img.onload = () => {
+    const previewWrap = document.getElementById("img-preview-wrap");
+    const previewImg  = document.getElementById("img-preview");
+    if (previewImg) previewImg.src = img.src;
+    if (previewWrap) previewWrap.style.display = "block";
+    
+    uploadedImage = img;
+    setStatus(`${img.naturalWidth}×${img.naturalHeight}px — loaded successfully`);
+    
+    seedMode = "image";
+    document.querySelectorAll(".tab-btn").forEach(b =>
+      b.classList.toggle("active", b.dataset.tab === "image-tab"));
+    document.querySelectorAll(".tab-pane").forEach(p =>
+      p.classList.toggle("active", p.id === "image-tab"));
+
+    // Micro-delay prevents math locking the UI thread while image loads
+    setTimeout(() => { if (typeof spawnAgents === "function") spawnAgents(); }, 50);
+  };
+  
+  img.onerror = () => {
+    setStatus("Could not load image. It may be corrupted.", true);
+  };
 }
 
 function setStatus(msg, err = false) {
-  imgStatus.style.color = err ? "#f66" : "var(--accent)";
-  imgStatus.textContent = msg;
+  const imgStatus = document.getElementById("img-status");
+  if (imgStatus) {
+    imgStatus.style.color = err ? "#f66" : "var(--accent)";
+    imgStatus.textContent = msg;
+  }
 }
 
 // ── p5 sketch ─────────────────────────────────────────────────────────────────
 function setup() {
-  createCanvas(windowWidth, windowHeight);
+  let w = max(1, windowWidth);
+  let h = max(1, windowHeight);
+  createCanvas(w, h);
   pixelDensity(1);
-
   initTrailBuffer();
-
   letterBuf = createGraphics(width, height);
-  spawnAgents();
+  
+  // Use the native Browser Font Loading API to wait for the font to be ready
+  if (document.fonts) {
+    document.fonts.load('120px "Bai Jamjuree"').then(() => {
+      spawnAgents();
+    }).catch(() => {
+      // Fallback if font loading fails
+      spawnAgents();
+    });
+  } else {
+    // Fallback for older browsers
+    setTimeout(spawnAgents, 500);
+  }
 }
-
-// ── Trail buffer (manual Float32, bypasses p5 blending entirely) ──────────────
-let trailR, trailG, trailB;   // Float32Array, one value per pixel
 
 function initTrailBuffer() {
   const n = width * height;
@@ -359,7 +386,6 @@ function depositTrail(x, y) {
   const xi = Math.floor(x), yi = Math.floor(y);
   if (xi < 0 || xi >= width || yi < 0 || yi >= height) return;
   const idx = xi + yi * width;
-  // Deposit full-strength colour into float buffer
   trailR[idx] = Math.min(255, trailR[idx] + TRAIL_R);
   trailG[idx] = Math.min(255, trailG[idx] + TRAIL_G);
   trailB[idx] = Math.min(255, trailB[idx] + TRAIL_B);
@@ -372,7 +398,6 @@ function senseTrail(sx, sy) {
 }
 
 function updateTrailBuffer() {
-  // 3×3 box blur + exponential decay applied to the float buffers
   const w = width, h = height;
   const newR = new Float32Array(w * h);
   const newG = new Float32Array(w * h);
@@ -400,28 +425,40 @@ function updateTrailBuffer() {
 function renderTrailToCanvas() {
   loadPixels();
   const n = width * height;
+  
+  // Clear the base layer
   for (let i = 0; i < n; i++) {
     const pi = i * 4;
-    pixels[pi]     = trailR[i];
-    pixels[pi + 1] = trailG[i];
-    pixels[pi + 2] = trailB[i];
-    pixels[pi + 3] = 204; // REDUCED OPACITY (80% of 255)
+    pixels[pi]     = 0;
+    pixels[pi + 1] = 0;
+    pixels[pi + 2] = 0;
+    pixels[pi + 3] = 204; // 80% Opacity Trails
   }
 
-  // Draw the skeleton pixels visually on top of the decaying trails
+  // Draw the permanent skeleton pixels FIRST (underneath)
+  // Dimmed to 40% intensity so the bright trails vividly pop when overlapping
   for (let i = 0; i < skeletonPixels.length; i++) {
     const p = skeletonPixels[i];
     const pi = (p.x + p.y * width) * 4;
-    pixels[pi]     = TRAIL_R;
-    pixels[pi + 1] = TRAIL_G;
-    pixels[pi + 2] = TRAIL_B;
-    pixels[pi + 3] = 255; // Keep the skeleton at 100% full opacity
+    pixels[pi]     = TRAIL_R * 0.4;
+    pixels[pi + 1] = TRAIL_G * 0.4;
+    pixels[pi + 2] = TRAIL_B * 0.4;
+    pixels[pi + 3] = 255; 
+  }
+
+  // Render the glowing trails ON TOP of the skeleton
+  for (let i = 0; i < n; i++) {
+    const pi = i * 4;
+    if (trailR[i] > 5 || trailG[i] > 5 || trailB[i] > 5) {
+      pixels[pi]     = Math.max(pixels[pi], trailR[i]);
+      pixels[pi + 1] = Math.max(pixels[pi + 1], trailG[i]);
+      pixels[pi + 2] = Math.max(pixels[pi + 2], trailB[i]);
+    }
   }
 
   updatePixels();
 }
 
-// ── Draw loop ─────────────────────────────────────────────────────────────────
 function draw() {
   for (const a of allAgents) a.update();
   for (const a of allAgents) depositTrail(a.pos.x, a.pos.y);
@@ -430,8 +467,11 @@ function draw() {
 }
 
 function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
+  let w = max(1, windowWidth);
+  let h = max(1, windowHeight);
+  resizeCanvas(w, h);
   initTrailBuffer();
+  if (letterBuf) letterBuf.remove();
   letterBuf = createGraphics(width, height);
   spawnAgents();
 }
@@ -449,13 +489,15 @@ function spawnAgents() {
 // ── Text spawn ────────────────────────────────────────────────────────────────
 function spawnFromText() {
   if (!textSeed.trim()) return;
+  if (!letterBuf || letterBuf.width <= 0 || letterBuf.height <= 0) return;
 
   const FONT_SIZE = 120;
 
   letterBuf.clear();
   letterBuf.background(0, 0);           
   letterBuf.textAlign(CENTER, CENTER);
-  letterBuf.textFont("monospace");
+  letterBuf.textFont("'Bai Jamjuree'"); // Use standard font-family reference
+  letterBuf.textStyle(BOLD);            // Use bold weight
   letterBuf.textSize(FONT_SIZE);
   letterBuf.fill(255);
   letterBuf.noStroke();
@@ -463,7 +505,6 @@ function spawnFromText() {
   letterBuf.loadPixels();
 
   const W = letterBuf.width, H = letterBuf.height;
-
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
   const halfW = Math.min(cx, Math.floor(textSeed.length * FONT_SIZE * 0.65));
   const halfH = Math.floor(FONT_SIZE * 0.7);
@@ -474,16 +515,21 @@ function spawnFromText() {
     for (let px = x0; px < x1; px++) {
       const idx = 4 * (px + py * W);
       if (letterBuf.pixels[idx + 3] < 128) continue; 
-      let isEdge = false;
-      outer: for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          if (!dx && !dy) continue;
-          if (letterBuf.pixels[4 * ((px+dx) + (py+dy) * W) + 3] < 128) {
-            isEdge = true; break outer;
+      
+      if (edgeMode === "edge") {
+        let isEdge = false;
+        outer: for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) continue;
+            if (letterBuf.pixels[4 * ((px+dx) + (py+dy) * W) + 3] < 128) {
+              isEdge = true; break outer;
+            }
           }
         }
+        if (isEdge) skeletonPixels.push({ x: px, y: py });
+      } else {
+        skeletonPixels.push({ x: px, y: py });
       }
-      if (isEdge) skeletonPixels.push({ x: px, y: py }); // Save to skeleton array
     }
   }
 
@@ -505,22 +551,27 @@ function spawnFromImage() {
   const ctx = offC.getContext("2d");
   ctx.clearRect(0, 0, width, height);
 
-  const scale = Math.min(width * 0.85 / uploadedImage.naturalWidth,
-                         height * 0.85 / uploadedImage.naturalHeight);
-  
-  // Guard against images with no calculable size
+  // For images like the BioDesign slide, fit to canvas size
+  const scale = Math.min(width / uploadedImage.naturalWidth, height / uploadedImage.naturalHeight);
   if (!scale || scale === Infinity) return;
 
   const dw = uploadedImage.naturalWidth * scale;
   const dh = uploadedImage.naturalHeight * scale;
   ctx.drawImage(uploadedImage, (width - dw) / 2, (height - dh) / 2, dw, dh);
 
-  const data = ctx.getImageData(0, 0, width, height).data;
-  const THRESH = 80;
+  let data;
+  try {
+    data = ctx.getImageData(0, 0, width, height).data;
+  } catch(e) {
+    setStatus("Canvas tainted. Try another image format.", true);
+    return;
+  }
 
+  // UPDATED LOGIC: Allows scanning images with WHITE backgrounds
   const isInside = i => {
     const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
-    return a > THRESH || (r + g + b) > 100;
+    // Check if the pixel has color/opacity AND is NOT completely bright white
+    return a > 50 && (r + g + b) < 720; 
   };
 
   if (edgeMode === "edge") {
@@ -532,23 +583,26 @@ function spawnFromImage() {
           if (!dx && !dy) continue;
           if (!isInside(4*((px+dx)+(py+dy)*width))) { edge=true; break outer; }
         }
-        if (edge) skeletonPixels.push({x:px, y:py}); // Save to skeleton array
+        if (edge) skeletonPixels.push({x:px, y:py});
       }
     }
   } else {
     for (let py = 0; py < height; py++)
       for (let px = 0; px < width; px++)
-        if (isInside(4*(px+py*width))) skeletonPixels.push({x:px, y:py}); // Save to skeleton array
+        if (isInside(4*(px+py*width))) skeletonPixels.push({x:px, y:py});
   }
 
-  if (!skeletonPixels.length) { setStatus("No pixels found — try a clearer image.", true); return; }
+  if (!skeletonPixels.length) { 
+    setStatus("No non-white pixels found. Image might be blank.", true); 
+    return; 
+  }
 
-  const total = Math.min(skeletonPixels.length, AGENTS_PER_LETTER * 6);
+  const total = Math.min(skeletonPixels.length, AGENTS_PER_LETTER * 8);
   for (let i = 0; i < total; i++) {
     const bp = skeletonPixels[Math.floor(Math.random() * skeletonPixels.length)];
     allAgents.push(new Agent(bp.x + random(-1,1), bp.y + random(-1,1), random(TWO_PI)));
   }
-  setStatus(`${allAgents.length.toLocaleString()} agents spawned`);
+  setStatus(`${allAgents.length.toLocaleString()} agents spawned from image`);
 }
 
 // ── Agent ─────────────────────────────────────────────────────────────────────
