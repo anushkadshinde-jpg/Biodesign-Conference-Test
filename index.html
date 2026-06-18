@@ -199,7 +199,6 @@ let edgeMode      = "edge";   // "edge" | "fill"
 let trailMap;       // p5.Graphics — holds the pheromone field
 let letterBuf;      // p5.Graphics — used only to rasterise text
 let allAgents = [];
-let skeletonPixels = []; // Global to retain the initial skeleton structure
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
 document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -229,7 +228,7 @@ function bindSlider(id, valId, setter, suffix = "") {
   const s = document.getElementById(id), v = document.getElementById(valId);
   s.addEventListener("input", e => { v.innerText = e.target.value + suffix; setter(+e.target.value); });
 }
-bindSlider("decaySlider", "decayVal",  x => decayFactor      = x);
+bindSlider("decaySlider", "decayVal",  x => decayFactor     = x);
 bindSlider("diffSlider",  "diffVal",   x => diffusionFactor = x);
 bindSlider("stepSlider",  "stepVal",   x => stepSize        = x);
 bindSlider("saSlider",    "saVal",     x => sensorAngle     = x * Math.PI / 180, "°");
@@ -243,14 +242,14 @@ const previewImg  = document.getElementById("img-preview");
 const imgClear    = document.getElementById("img-clear");
 const imgStatus   = document.getElementById("img-status");
 
-dropZone.addEventListener("click",      () => fileInput.click());
+dropZone.addEventListener("click",     () => fileInput.click());
 dropZone.addEventListener("dragover",  e  => { e.preventDefault(); dropZone.classList.add("drag-over"); });
 dropZone.addEventListener("dragleave", ()  => dropZone.classList.remove("drag-over"));
 dropZone.addEventListener("drop", e => {
   e.preventDefault(); dropZone.classList.remove("drag-over");
-  const f = e.dataTransfer.files; if (f) handleFile(f);
+  const f = e.dataTransfer.files[0]; if (f) handleFile(f);
 });
-fileInput.addEventListener("change", e => { const f = e.target.files; if (f) handleFile(f); });
+fileInput.addEventListener("change", e => { const f = e.target.files[0]; if (f) handleFile(f); });
 imgClear.addEventListener("click", e => {
   e.stopPropagation();
   uploadedImage = null;
@@ -371,19 +370,8 @@ function renderTrailToCanvas() {
     pixels[pi]     = trailR[i];
     pixels[pi + 1] = trailG[i];
     pixels[pi + 2] = trailB[i];
-    pixels[pi + 3] = 204; // REDUCED OPACITY: 204 is 80% of 255 (a 20% reduction)
+    pixels[pi + 3] = 255;
   }
-
-  // Draw the skeleton pixels purely visually on top of the decaying trail array
-  for (let i = 0; i < skeletonPixels.length; i++) {
-    const p = skeletonPixels[i];
-    const pi = (p.x + p.y * width) * 4;
-    pixels[pi]     = TRAIL_R;
-    pixels[pi + 1] = TRAIL_G;
-    pixels[pi + 2] = TRAIL_B;
-    pixels[pi + 3] = 255; // Ensure the skeleton stays at 100% full opacity
-  }
-
   updatePixels();
 }
 
@@ -409,7 +397,6 @@ function windowResized() {
 // ── Spawn ─────────────────────────────────────────────────────────────────────
 function spawnAgents() {
   allAgents = [];
-  skeletonPixels = []; // Clear out skeleton mapping on respawn
   initTrailBuffer(); // clear trail on respawn
 
   if (seedMode === "image") spawnFromImage();
@@ -437,6 +424,7 @@ function spawnFromText() {
   // We scan the full buffer but limit to a sensible bounding box.
   const W = letterBuf.width, H = letterBuf.height;
 
+  const edgePixels = [];
   // Scan entire buffer (text is centred, so a ±200px margin is fine)
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
   const halfW = Math.min(cx, Math.floor(textSeed.length * FONT_SIZE * 0.65));
@@ -458,15 +446,15 @@ function spawnFromText() {
           }
         }
       }
-      if (isEdge) skeletonPixels.push({ x: px, y: py }); // Save to global skeleton array
+      if (isEdge) edgePixels.push({ x: px, y: py });
     }
   }
 
-  if (!skeletonPixels.length) return;
+  if (!edgePixels.length) return;
 
   const total = AGENTS_PER_LETTER * max(1, textSeed.trim().length);
   for (let i = 0; i < total; i++) {
-    const bp = skeletonPixels[Math.floor(Math.random() * skeletonPixels.length)];
+    const bp = edgePixels[Math.floor(Math.random() * edgePixels.length)];
     allAgents.push(new Agent(bp.x + random(-1,1), bp.y + random(-1,1), random(TWO_PI)));
   }
 }
@@ -488,6 +476,7 @@ function spawnFromImage() {
   ctx.drawImage(uploadedImage, (width - dw) / 2, (height - dh) / 2, dw, dh);
 
   const data = ctx.getImageData(0, 0, width, height).data;
+  const candidates = [];
   const THRESH = 80;
 
   const isInside = i => {
@@ -504,20 +493,20 @@ function spawnFromImage() {
           if (!dx && !dy) continue;
           if (!isInside(4*((px+dx)+(py+dy)*width))) { edge=true; break outer; }
         }
-        if (edge) skeletonPixels.push({x:px, y:py}); // Save to global skeleton array
+        if (edge) candidates.push({x:px, y:py});
       }
     }
   } else {
     for (let py = 0; py < height; py++)
       for (let px = 0; px < width; px++)
-        if (isInside(4*(px+py*width))) skeletonPixels.push({x:px, y:py}); // Save to global skeleton array
+        if (isInside(4*(px+py*width))) candidates.push({x:px, y:py});
   }
 
-  if (!skeletonPixels.length) { setStatus("No pixels found — try a clearer image.", true); return; }
+  if (!candidates.length) { setStatus("No pixels found — try a clearer image.", true); return; }
 
-  const total = Math.min(skeletonPixels.length, AGENTS_PER_LETTER * 6);
+  const total = Math.min(candidates.length, AGENTS_PER_LETTER * 6);
   for (let i = 0; i < total; i++) {
-    const bp = skeletonPixels[Math.floor(Math.random() * skeletonPixels.length)];
+    const bp = candidates[Math.floor(Math.random() * candidates.length)];
     allAgents.push(new Agent(bp.x + random(-1,1), bp.y + random(-1,1), random(TWO_PI)));
   }
   setStatus(`${allAgents.length.toLocaleString()} agents spawned`);
@@ -536,7 +525,7 @@ class Agent {
 
     if      (sL > sC && sL > sR) this.angle -= rotationAngle;
     else if (sR > sC && sR > sL) this.angle += rotationAngle;
-    else                         this.angle += random(-0.1, 0.1);
+    else                          this.angle += random(-0.1, 0.1);
 
     this.pos.x = (this.pos.x + cos(this.angle) * stepSize + width)  % width;
     this.pos.y = (this.pos.y + sin(this.angle) * stepSize + height) % height;
