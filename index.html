@@ -182,7 +182,7 @@
 // ── Params ────────────────────────────────────────────────────────────────────
 const AGENTS_PER_LETTER = 2000;
 const SENSOR_DIST       = 10;
-const TRAIL_R = 72, TRAIL_G = 180, TRAIL_B = 147;  // 48b493 decomposed
+const TRAIL_R = 230, TRAIL_G = 232, TRAIL_B = 0;   // E6E800 decomposed
 
 let textSeed        = "SLIME";
 let decayFactor     = 0.96;
@@ -199,6 +199,7 @@ let edgeMode      = "edge";   // "edge" | "fill"
 let trailMap;       // p5.Graphics — holds the pheromone field
 let letterBuf;      // p5.Graphics — used only to rasterise text
 let allAgents = [];
+let skeletonPixels = []; // Added to store the visual skeleton
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
 document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -228,7 +229,7 @@ function bindSlider(id, valId, setter, suffix = "") {
   const s = document.getElementById(id), v = document.getElementById(valId);
   s.addEventListener("input", e => { v.innerText = e.target.value + suffix; setter(+e.target.value); });
 }
-bindSlider("decaySlider", "decayVal",  x => decayFactor     = x);
+bindSlider("decaySlider", "decayVal",  x => decayFactor      = x);
 bindSlider("diffSlider",  "diffVal",   x => diffusionFactor = x);
 bindSlider("stepSlider",  "stepVal",   x => stepSize        = x);
 bindSlider("saSlider",    "saVal",     x => sensorAngle     = x * Math.PI / 180, "°");
@@ -242,14 +243,14 @@ const previewImg  = document.getElementById("img-preview");
 const imgClear    = document.getElementById("img-clear");
 const imgStatus   = document.getElementById("img-status");
 
-dropZone.addEventListener("click",     () => fileInput.click());
+dropZone.addEventListener("click",      () => fileInput.click());
 dropZone.addEventListener("dragover",  e  => { e.preventDefault(); dropZone.classList.add("drag-over"); });
 dropZone.addEventListener("dragleave", ()  => dropZone.classList.remove("drag-over"));
 dropZone.addEventListener("drop", e => {
   e.preventDefault(); dropZone.classList.remove("drag-over");
-  const f = e.dataTransfer.files[0]; if (f) handleFile(f);
+  const f = e.dataTransfer.files; if (f) handleFile(f);
 });
-fileInput.addEventListener("change", e => { const f = e.target.files[0]; if (f) handleFile(f); });
+fileInput.addEventListener("change", e => { const f = e.target.files; if (f) handleFile(f); });
 imgClear.addEventListener("click", e => {
   e.stopPropagation();
   uploadedImage = null;
@@ -300,9 +301,6 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   pixelDensity(1);
 
-  // FIX: trailMap uses a plain 2D array, NOT a p5.Graphics with its own alpha.
-  // We manage the pheromone field manually as a Float32 array for R/G/B channels,
-  // then draw it to the main canvas each frame. This avoids ALL blending/alpha bugs.
   initTrailBuffer();
 
   letterBuf = createGraphics(width, height);
@@ -323,7 +321,6 @@ function depositTrail(x, y) {
   const xi = Math.floor(x), yi = Math.floor(y);
   if (xi < 0 || xi >= width || yi < 0 || yi >= height) return;
   const idx = xi + yi * width;
-  // Deposit full-strength colour into float buffer (no alpha ambiguity)
   trailR[idx] = Math.min(255, trailR[idx] + TRAIL_R);
   trailG[idx] = Math.min(255, trailG[idx] + TRAIL_G);
   trailB[idx] = Math.min(255, trailB[idx] + TRAIL_B);
@@ -332,11 +329,10 @@ function depositTrail(x, y) {
 function senseTrail(sx, sy) {
   const xi = Math.floor(sx), yi = Math.floor(sy);
   if (xi < 0 || xi >= width || yi < 0 || yi >= height) return 0;
-  return trailR[xi + yi * width]; // sense on R channel (strongest signal)
+  return trailR[xi + yi * width]; 
 }
 
 function updateTrailBuffer() {
-  // 3×3 box blur + exponential decay applied to the float buffers
   const w = width, h = height;
   const newR = new Float32Array(w * h);
   const newG = new Float32Array(w * h);
@@ -362,7 +358,6 @@ function updateTrailBuffer() {
 }
 
 function renderTrailToCanvas() {
-  // Write float trail buffers directly into p5 pixel array
   loadPixels();
   const n = width * height;
   for (let i = 0; i < n; i++) {
@@ -372,18 +367,25 @@ function renderTrailToCanvas() {
     pixels[pi + 2] = trailB[i];
     pixels[pi + 3] = 255;
   }
+
+  // Draw the skeleton pixels purely visually on top of the decaying trail array
+  for (let i = 0; i < skeletonPixels.length; i++) {
+    const p = skeletonPixels[i];
+    const pi = (p.x + p.y * width) * 4;
+    pixels[pi]     = TRAIL_R;
+    pixels[pi + 1] = TRAIL_G;
+    pixels[pi + 2] = TRAIL_B;
+    pixels[pi + 3] = 255; 
+  }
+
   updatePixels();
 }
 
 // ── Draw loop ─────────────────────────────────────────────────────────────────
 function draw() {
-  // 1. Agents sense and move
   for (const a of allAgents) a.update();
-  // 2. Agents deposit into float trail buffer
   for (const a of allAgents) depositTrail(a.pos.x, a.pos.y);
-  // 3. Diffuse + decay float trail buffer
   updateTrailBuffer();
-  // 4. Blit trail buffer to screen pixels
   renderTrailToCanvas();
 }
 
@@ -397,7 +399,8 @@ function windowResized() {
 // ── Spawn ─────────────────────────────────────────────────────────────────────
 function spawnAgents() {
   allAgents = [];
-  initTrailBuffer(); // clear trail on respawn
+  skeletonPixels = []; // Clear skeleton on respawn
+  initTrailBuffer(); 
 
   if (seedMode === "image") spawnFromImage();
   else                      spawnFromText();
@@ -410,7 +413,7 @@ function spawnFromText() {
   const FONT_SIZE = 120;
 
   letterBuf.clear();
-  letterBuf.background(0, 0);           // fully transparent background
+  letterBuf.background(0, 0);           
   letterBuf.textAlign(CENTER, CENTER);
   letterBuf.textFont("monospace");
   letterBuf.textSize(FONT_SIZE);
@@ -419,13 +422,8 @@ function spawnFromText() {
   letterBuf.text(textSeed, letterBuf.width / 2, letterBuf.height / 2);
   letterBuf.loadPixels();
 
-  // FIX: measure text width using letterBuf (which has the font set),
-  // not the main canvas which has no font set.
-  // We scan the full buffer but limit to a sensible bounding box.
   const W = letterBuf.width, H = letterBuf.height;
 
-  const edgePixels = [];
-  // Scan entire buffer (text is centred, so a ±200px margin is fine)
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
   const halfW = Math.min(cx, Math.floor(textSeed.length * FONT_SIZE * 0.65));
   const halfH = Math.floor(FONT_SIZE * 0.7);
@@ -435,8 +433,7 @@ function spawnFromText() {
   for (let py = y0; py < y1; py++) {
     for (let px = x0; px < x1; px++) {
       const idx = 4 * (px + py * W);
-      if (letterBuf.pixels[idx + 3] < 128) continue; // transparent — skip
-      // Check if any neighbour is transparent (= edge pixel)
+      if (letterBuf.pixels[idx + 3] < 128) continue; 
       let isEdge = false;
       outer: for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
@@ -446,15 +443,15 @@ function spawnFromText() {
           }
         }
       }
-      if (isEdge) edgePixels.push({ x: px, y: py });
+      if (isEdge) skeletonPixels.push({ x: px, y: py });
     }
   }
 
-  if (!edgePixels.length) return;
+  if (!skeletonPixels.length) return;
 
   const total = AGENTS_PER_LETTER * max(1, textSeed.trim().length);
   for (let i = 0; i < total; i++) {
-    const bp = edgePixels[Math.floor(Math.random() * edgePixels.length)];
+    const bp = skeletonPixels[Math.floor(Math.random() * skeletonPixels.length)];
     allAgents.push(new Agent(bp.x + random(-1,1), bp.y + random(-1,1), random(TWO_PI)));
   }
 }
@@ -468,7 +465,6 @@ function spawnFromImage() {
   const ctx = offC.getContext("2d");
   ctx.clearRect(0, 0, width, height);
 
-  // Scale to fit, centred
   const scale = Math.min(width * 0.85 / uploadedImage.naturalWidth,
                          height * 0.85 / uploadedImage.naturalHeight);
   const dw = uploadedImage.naturalWidth * scale;
@@ -476,7 +472,6 @@ function spawnFromImage() {
   ctx.drawImage(uploadedImage, (width - dw) / 2, (height - dh) / 2, dw, dh);
 
   const data = ctx.getImageData(0, 0, width, height).data;
-  const candidates = [];
   const THRESH = 80;
 
   const isInside = i => {
@@ -493,20 +488,20 @@ function spawnFromImage() {
           if (!dx && !dy) continue;
           if (!isInside(4*((px+dx)+(py+dy)*width))) { edge=true; break outer; }
         }
-        if (edge) candidates.push({x:px, y:py});
+        if (edge) skeletonPixels.push({x:px, y:py});
       }
     }
   } else {
     for (let py = 0; py < height; py++)
       for (let px = 0; px < width; px++)
-        if (isInside(4*(px+py*width))) candidates.push({x:px, y:py});
+        if (isInside(4*(px+py*width))) skeletonPixels.push({x:px, y:py});
   }
 
-  if (!candidates.length) { setStatus("No pixels found — try a clearer image.", true); return; }
+  if (!skeletonPixels.length) { setStatus("No pixels found — try a clearer image.", true); return; }
 
-  const total = Math.min(candidates.length, AGENTS_PER_LETTER * 6);
+  const total = Math.min(skeletonPixels.length, AGENTS_PER_LETTER * 6);
   for (let i = 0; i < total; i++) {
-    const bp = candidates[Math.floor(Math.random() * candidates.length)];
+    const bp = skeletonPixels[Math.floor(Math.random() * skeletonPixels.length)];
     allAgents.push(new Agent(bp.x + random(-1,1), bp.y + random(-1,1), random(TWO_PI)));
   }
   setStatus(`${allAgents.length.toLocaleString()} agents spawned`);
@@ -525,7 +520,7 @@ class Agent {
 
     if      (sL > sC && sL > sR) this.angle -= rotationAngle;
     else if (sR > sC && sR > sL) this.angle += rotationAngle;
-    else                          this.angle += random(-0.1, 0.1);
+    else                         this.angle += random(-0.1, 0.1);
 
     this.pos.x = (this.pos.x + cos(this.angle) * stepSize + width)  % width;
     this.pos.y = (this.pos.y + sin(this.angle) * stepSize + height) % height;
