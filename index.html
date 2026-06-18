@@ -182,7 +182,7 @@
 // ── Params ────────────────────────────────────────────────────────────────────
 const AGENTS_PER_LETTER = 2000;
 const SENSOR_DIST       = 10;
-const TRAIL_R = 230, TRAIL_G = 232, TRAIL_B = 0;   // E6E800 decomposed
+const TRAIL_R = 72, TRAIL_G = 180, TRAIL_B = 147;  // #48b493 color decomposed
 
 let textSeed        = "SLIME";
 let decayFactor     = 0.96;
@@ -199,7 +199,7 @@ let edgeMode      = "edge";   // "edge" | "fill"
 let trailMap;       // p5.Graphics — holds the pheromone field
 let letterBuf;      // p5.Graphics — used only to rasterise text
 let allAgents = [];
-let skeletonPixels = []; // Added to store the visual skeleton
+let skeletonPixels = []; // Global to retain the initial skeleton structure
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
 document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -243,14 +243,31 @@ const previewImg  = document.getElementById("img-preview");
 const imgClear    = document.getElementById("img-clear");
 const imgStatus   = document.getElementById("img-status");
 
-dropZone.addEventListener("click",      () => fileInput.click());
-dropZone.addEventListener("dragover",  e  => { e.preventDefault(); dropZone.classList.add("drag-over"); });
-dropZone.addEventListener("dragleave", ()  => dropZone.classList.remove("drag-over"));
-dropZone.addEventListener("drop", e => {
-  e.preventDefault(); dropZone.classList.remove("drag-over");
-  const f = e.dataTransfer.files; if (f) handleFile(f);
+// Prevent defaults to stop browser from opening the image in a new tab
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  dropZone.addEventListener(eventName, e => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
 });
-fileInput.addEventListener("change", e => { const f = e.target.files; if (f) handleFile(f); });
+
+dropZone.addEventListener("click", () => fileInput.click());
+dropZone.addEventListener("dragover", () => dropZone.classList.add("drag-over"));
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+
+dropZone.addEventListener("drop", e => {
+  dropZone.classList.remove("drag-over");
+  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    handleFile(e.dataTransfer.files);
+  }
+});
+
+fileInput.addEventListener("change", e => { 
+  if (e.target.files && e.target.files.length > 0) {
+    handleFile(e.target.files); 
+  }
+});
+
 imgClear.addEventListener("click", e => {
   e.stopPropagation();
   uploadedImage = null;
@@ -261,10 +278,11 @@ imgClear.addEventListener("click", e => {
   if (seedMode === "image" && typeof spawnAgents === "function") spawnAgents();
 });
 
+// BULLETPROOF HANDLE FILE FUNCTION
 function handleFile(file) {
-  const ok = /\.(png|svg)$/i.test(file.name) ||
-             ["image/png","image/svg+xml"].includes(file.type);
-  if (!ok) { setStatus("Only PNG or SVG files are supported.", true); return; }
+  if (!file) return;
+
+  // We have removed the strict name/type checks to prevent false rejections.
   setStatus("Loading…");
 
   const reader = new FileReader();
@@ -284,7 +302,7 @@ function handleFile(file) {
         p.classList.toggle("active", p.id === "image-tab"));
       if (typeof spawnAgents === "function") spawnAgents();
     };
-    img.onerror = () => setStatus("Could not decode — try another file.", true);
+    img.onerror = () => setStatus("Could not decode — try a valid image file.", true);
     img.src = evt.target.result;
   };
   reader.onerror = () => setStatus("File read error.", true);
@@ -300,9 +318,7 @@ function setStatus(msg, err = false) {
 function setup() {
   createCanvas(windowWidth, windowHeight);
   pixelDensity(1);
-
   initTrailBuffer();
-
   letterBuf = createGraphics(width, height);
   spawnAgents();
 }
@@ -321,6 +337,7 @@ function depositTrail(x, y) {
   const xi = Math.floor(x), yi = Math.floor(y);
   if (xi < 0 || xi >= width || yi < 0 || yi >= height) return;
   const idx = xi + yi * width;
+  // Deposit full-strength colour into float buffer
   trailR[idx] = Math.min(255, trailR[idx] + TRAIL_R);
   trailG[idx] = Math.min(255, trailG[idx] + TRAIL_G);
   trailB[idx] = Math.min(255, trailB[idx] + TRAIL_B);
@@ -333,6 +350,7 @@ function senseTrail(sx, sy) {
 }
 
 function updateTrailBuffer() {
+  // 3×3 box blur + exponential decay applied to the float buffers
   const w = width, h = height;
   const newR = new Float32Array(w * h);
   const newG = new Float32Array(w * h);
@@ -365,17 +383,17 @@ function renderTrailToCanvas() {
     pixels[pi]     = trailR[i];
     pixels[pi + 1] = trailG[i];
     pixels[pi + 2] = trailB[i];
-    pixels[pi + 3] = 255;
+    pixels[pi + 3] = 204; // REDUCED OPACITY (80% of 255)
   }
 
-  // Draw the skeleton pixels purely visually on top of the decaying trail array
+  // Draw the skeleton pixels visually on top of the decaying trails
   for (let i = 0; i < skeletonPixels.length; i++) {
     const p = skeletonPixels[i];
     const pi = (p.x + p.y * width) * 4;
     pixels[pi]     = TRAIL_R;
     pixels[pi + 1] = TRAIL_G;
     pixels[pi + 2] = TRAIL_B;
-    pixels[pi + 3] = 255; 
+    pixels[pi + 3] = 255; // Keep the skeleton at 100% full opacity
   }
 
   updatePixels();
@@ -399,7 +417,7 @@ function windowResized() {
 // ── Spawn ─────────────────────────────────────────────────────────────────────
 function spawnAgents() {
   allAgents = [];
-  skeletonPixels = []; // Clear skeleton on respawn
+  skeletonPixels = []; // Clear skeleton mapping on respawn
   initTrailBuffer(); 
 
   if (seedMode === "image") spawnFromImage();
@@ -443,7 +461,7 @@ function spawnFromText() {
           }
         }
       }
-      if (isEdge) skeletonPixels.push({ x: px, y: py });
+      if (isEdge) skeletonPixels.push({ x: px, y: py }); // Save to skeleton array
     }
   }
 
@@ -488,13 +506,13 @@ function spawnFromImage() {
           if (!dx && !dy) continue;
           if (!isInside(4*((px+dx)+(py+dy)*width))) { edge=true; break outer; }
         }
-        if (edge) skeletonPixels.push({x:px, y:py});
+        if (edge) skeletonPixels.push({x:px, y:py}); // Save to skeleton array
       }
     }
   } else {
     for (let py = 0; py < height; py++)
       for (let px = 0; px < width; px++)
-        if (isInside(4*(px+py*width))) skeletonPixels.push({x:px, y:py});
+        if (isInside(4*(px+py*width))) skeletonPixels.push({x:px, y:py}); // Save to skeleton array
   }
 
   if (!skeletonPixels.length) { setStatus("No pixels found — try a clearer image.", true); return; }
