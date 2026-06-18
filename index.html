@@ -534,3 +534,42 @@ function spawnFromImage() {
       for (let px = 0; px < width; px++)
         if (isInside(4*(px+py*width))) skeletonPixels.push({x:px, y:py}); 
   }
+
+  if (!skeletonPixels.length) { setStatus("No pixels found — try a clearer image.", true); return; }
+
+  const total = Math.min(skeletonPixels.length, AGENTS_PER_LETTER * 6);
+  for (let i = 0; i < total; i++) {
+    const bp = skeletonPixels[Math.floor(Math.random() * skeletonPixels.length)];
+    allAgents.push(new Agent(bp.x + random(-1,1), bp.y + random(-1,1), random(TWO_PI)));
+  }
+  setStatus(`${allAgents.length.toLocaleString()} agents spawned`);
+}
+
+// ── Agent ─────────────────────────────────────────────────────────────────────
+class Agent {
+  constructor(x, y, angle) {
+    this.pos   = createVector(x, y);
+    this.angle = angle;
+  }
+  update() {
+    const sL = this._sense(this.angle - sensorAngle);
+    const sC = this._sense(this.angle);
+    const sR = this._sense(this.angle + sensorAngle);
+
+    if      (sL > sC && sL > sR) this.angle -= rotationAngle;
+    else if (sR > sC && sR > sL) this.angle += rotationAngle;
+    else                         this.angle += random(-0.1, 0.1);
+
+    this.pos.x = (this.pos.x + cos(this.angle) * stepSize + width)  % width;
+    this.pos.y = (this.pos.y + sin(this.angle) * stepSize + height) % height;
+  }
+  _sense(angle) {
+    return senseTrail(
+      this.pos.x + Math.cos(angle) * SENSOR_DIST,
+      this.pos.y + Math.sin(angle) * SENSOR_DIST
+    );
+  }
+}
+</script>
+</body>
+</html>
