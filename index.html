@@ -248,8 +248,12 @@ dropZone.addEventListener("dragover",  e  => { e.preventDefault(); dropZone.clas
 dropZone.addEventListener("dragleave", ()  => dropZone.classList.remove("drag-over"));
 dropZone.addEventListener("drop", e => {
   e.preventDefault(); dropZone.classList.remove("drag-over");
-  const f = e.dataTransfer.files; if (f) handleFile(f);
+  const f = e.dataTransfer.files; if (f) handleFile(f); 
 });
+fileInput.addEventListener("change", e => { 
+  const f = e.target.files; if (f) handleFile(f); 
+});
+
 fileInput.addEventListener("change", e => { const f = e.target.files; if (f) handleFile(f); });
 imgClear.addEventListener("click", e => {
   e.stopPropagation();
