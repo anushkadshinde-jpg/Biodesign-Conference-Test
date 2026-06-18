@@ -182,7 +182,7 @@
 // ── Params ────────────────────────────────────────────────────────────────────
 const AGENTS_PER_LETTER = 2000;
 const SENSOR_DIST       = 10;
-const TRAIL_R = 72, TRAIL_G = 180, TRAIL_B = 147;  // #48b493 color decomposed
+const TRAIL_R = 72, TRAIL_G = 180, TRAIL_B = 147;  // 48b493 decomposed
 
 let textSeed        = "SLIME";
 let decayFactor     = 0.96;
@@ -278,35 +278,58 @@ imgClear.addEventListener("click", e => {
   if (seedMode === "image" && typeof spawnAgents === "function") spawnAgents();
 });
 
-// BULLETPROOF HANDLE FILE FUNCTION
 function handleFile(file) {
   if (!file) return;
 
-  // We have removed the strict name/type checks to prevent false rejections.
   setStatus("Loading…");
+  console.log("File received:", file.name, file.type, file.size);
 
-  const reader = new FileReader();
-  reader.onload = evt => {
-    previewImg.src = evt.target.result;
-    previewWrap.style.display = "block";
+  try {
+    const reader = new FileReader();
+    
+    reader.onload = function(evt) {
+      // 1. Immediately show the image preview on screen
+      previewImg.src = evt.target.result;
+      previewWrap.style.display = "block";
 
-    const img = new Image();
-    img.onload = () => {
-      uploadedImage = img;
-      setStatus(`${img.naturalWidth}×${img.naturalHeight}px — ready`);
-      // Auto-switch to image tab
-      seedMode = "image";
-      document.querySelectorAll(".tab-btn").forEach(b =>
-        b.classList.toggle("active", b.dataset.tab === "image-tab"));
-      document.querySelectorAll(".tab-pane").forEach(p =>
-        p.classList.toggle("active", p.id === "image-tab"));
-      if (typeof spawnAgents === "function") spawnAgents();
+      const img = new Image();
+      img.onload = function() {
+        uploadedImage = img;
+        setStatus(`${img.naturalWidth}×${img.naturalHeight}px — ready`);
+        
+        // Auto-switch to image tab
+        seedMode = "image";
+        document.querySelectorAll(".tab-btn").forEach(b =>
+          b.classList.toggle("active", b.dataset.tab === "image-tab"));
+        document.querySelectorAll(".tab-pane").forEach(p =>
+          p.classList.toggle("active", p.id === "image-tab"));
+          
+        // 2. Add a tiny delay before doing the heavy math so the browser doesn't freeze
+        setTimeout(() => {
+          try {
+            if (typeof spawnAgents === "function") spawnAgents();
+          } catch (err) {
+            console.error(err);
+            setStatus("Simulation failed to start.", true);
+          }
+        }, 50); 
+      };
+      
+      img.onerror = function() {
+        setStatus("Could not decode image data.", true);
+      };
+      img.src = evt.target.result;
     };
-    img.onerror = () => setStatus("Could not decode — try a valid image file.", true);
-    img.src = evt.target.result;
-  };
-  reader.onerror = () => setStatus("File read error.", true);
-  reader.readAsDataURL(file);
+
+    reader.onerror = function() {
+      setStatus("Error reading local file.", true);
+    };
+
+    reader.readAsDataURL(file);
+  } catch (err) {
+    console.error(err);
+    setStatus("Browser prevented file access.", true);
+  }
 }
 
 function setStatus(msg, err = false) {
@@ -318,7 +341,9 @@ function setStatus(msg, err = false) {
 function setup() {
   createCanvas(windowWidth, windowHeight);
   pixelDensity(1);
+
   initTrailBuffer();
+
   letterBuf = createGraphics(width, height);
   spawnAgents();
 }
@@ -417,7 +442,7 @@ function windowResized() {
 // ── Spawn ─────────────────────────────────────────────────────────────────────
 function spawnAgents() {
   allAgents = [];
-  skeletonPixels = []; // Clear skeleton mapping on respawn
+  skeletonPixels = []; // Clear skeleton on respawn
   initTrailBuffer(); 
 
   if (seedMode === "image") spawnFromImage();
@@ -461,7 +486,7 @@ function spawnFromText() {
           }
         }
       }
-      if (isEdge) skeletonPixels.push({ x: px, y: py }); // Save to skeleton array
+      if (isEdge) skeletonPixels.push({ x: px, y: py });
     }
   }
 
@@ -485,6 +510,10 @@ function spawnFromImage() {
 
   const scale = Math.min(width * 0.85 / uploadedImage.naturalWidth,
                          height * 0.85 / uploadedImage.naturalHeight);
+  
+  // Guard against images with no calculable size
+  if (!scale || scale === Infinity) return;
+
   const dw = uploadedImage.naturalWidth * scale;
   const dh = uploadedImage.naturalHeight * scale;
   ctx.drawImage(uploadedImage, (width - dw) / 2, (height - dh) / 2, dw, dh);
